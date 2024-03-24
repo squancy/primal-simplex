@@ -1,182 +1,23 @@
-import pprint
 import numpy as np
 import sympy
-import scipy
 import copy
 
 def read_input():
   """
-  Reads input from stdin
+  Reads input from a file
   
   :return: the matrix A, the vector b and the function we are optimizing for
   """
 
-  try:
-    n = int(input())
-    m = int(input())
-  except ValueError:
-    raise ValueError("n and m must be integers")
-
-  c = input().split()
-  lines = []
-  for _ in range(int(m)):
-    lines.append(input())
-  
-  try:
-    A = [] 
-    for row in lines:
-      a = [sympy.Rational(int(x), 1) for x in row.split()[:-1]]
-      A.append(a)
-
-    b = []
-    for row in lines:
-      b.append(sympy.Rational(int(row.split()[-1]), 1))
-
-    c = [sympy.Rational(int(x), 1) for x in c]
-  except ValueError:
-    raise ValueError("A, b and c must be integers")
-
-  return np.array(A), np.array(b), np.array(c)
-
-def back_substitution(U, B):
-  """
-  Performs back substitution on a lower triangular matrix
-
-  :param U: the triangular matrix
-  :param B: the vector b
-
-  :return: a vector x with the substituted values
-  """
-
-  m = U.shape[0] 
-  X = np.array([sympy.Rational(0, 1) for _ in range(m)]).reshape(m, 1)
-
-  for i in range(m - 1, -1, -1):
-    X[i] = B[i]
-    for j in range(i + 1, m):
-      X[i] -= U[i][j] * X[j]
-    if U[i][i] != 0:
-      X[i] /= U[i][i]
-
-  return X
-
-def row_swap(A, k, l):
-  """
-  Performs a row swap on the matrix A
-
-  :param A: the matrix A
-  :param k: the index of a row
-  :param l: the index of a row
-
-  :return: a copy of A with the rows swapped
-  """
-
-  m = A.shape[0]
-  n = A.shape[1]
-
-  B = np.copy(A)
-      
-  for j in range(n):
-    temp = B[k][j]
-    B[k][j] = B[l][j]
-    B[l][j] = temp
-      
-  return B
-
-def row_scale(A, k, scale):
-  """
-  Scales the kth row in matrix A by scale
-
-  :param A: the matrix A
-  :param k: the kth row
-  :param scale: the number by which to scale
-
-  :return: a copy of A with the kth row scaled
-  """
-
-  m = A.shape[0]
-  n = A.shape[1]
-
-  B = np.copy(A)
-
-  for j in range(n):
-    B[k][j] *= scale
-      
-  return B
-
-def row_add(A, k, l, scale):
-  """
-  Performs the addition of two rows in A
-
-  :param A: the matrix A
-  :param k: the index of a row
-  :param l: the index of a row
-  :param scale: the number by which to scale the kth row
-
-  :return: a copy of A with the kth and lth rows added
-  """
-
-  m = A.shape[0]
-  n = A.shape[1]
-
-  B = np.copy(A)
-      
-  for j in range(n):
-    B[l][j] += B[k][j] * scale
-      
-  return B
-
-def row_reduction(A):
-  """
-  Performs Gaussian-elimination on an augmented matrix n x (n + 1)
-
-  :param A: the augmented matrix A
-
-  :return: a lower triangular matrix derived from A
-  """
-
-  m = A.shape[0]
-  n = A.shape[1]
-
-  B = np.copy(A)
-
-  for k in range(m):
-    pivot = B[k][k]
-    pivot_row = k
-    
-    while pivot == 0 and pivot_row < m - 1:
-      pivot_row += 1
-      pivot = B[pivot_row][k]
-        
-    if pivot_row != k:
-      B = row_swap(B, k, pivot_row)
-        
-    if pivot != 0:
-      B = row_scale(B, k, sympy.Rational(1, 1) / B[k][k])
-      for i in range(k + 1, m):
-        B = row_add(B, k, i, -B[i][k])
-
-  return B
-
-def solve_lin(A, b):
-  """
-  Solves Ax = b
-  It is assumed that a unique solution exists to the system of equations
-
-  :param A: the matrix A
-  :param b: the vector b
-
-  :return: a vector (x_1, ..., x_n) that is the unique solution
-  """
-
-  n = A.shape[0]
-  A_augmented = np.c_[A, b]
-  R = row_reduction(A_augmented)
-  B_reduced = R[:, n:n+1]
-  A_reduced = R[:, 0:n]
-  X = back_substitution(A_reduced, B_reduced)
-
-  return X.flatten()
+  with open('inp.txt') as f:
+    lines = [line.rstrip() for line in f]
+    m = int(lines[1])
+    c = np.array([sympy.Rational(x, 1) for x in lines[2].split(' ')])
+    A = np.array([[sympy.Rational(x, 1) for x in lines[3 + i].split(' ')] for i in range(m)])
+    b = A[:, -1]
+    A = A[:, :-1]
+  print(A)
+  return A, b, c
 
 def pivot(A_prime, b_prime, c_prime, r, p):
   """
@@ -267,6 +108,22 @@ def select_r(b_prime, a_p):
   tmp = np.array([float('inf') if a_p[i] <= 0 else b_prime[i] / a_p[i] for i in range(len(a_p))])
   return tmp.argmin(axis = 0)
 
+def I_solve(I, b):
+  """
+  Solves an equation Ax = b where the columns of A are the permuted columns of the identity matrix
+
+  :param I: the matrix A
+  :param b: the vector b
+
+  :return: a vector x which is the solution
+  """
+
+  x = [0] * I.shape[0]
+  for i in range(I.shape[1]):
+    pos = np.where(I[:, i] == 1)[0][0]
+    x[i] = b[pos]
+  return np.array(x)
+
 def primal_simplex(A, b, c, B_inds, phase_one = False):
   """
   Performs the primal simplex algorithm 
@@ -289,14 +146,16 @@ def primal_simplex(A, b, c, B_inds, phase_one = False):
     B_inv = np.array(sympy.Matrix(B).inv())
     A_prime = B_inv@A
     b_prime = B_inv@b
-    y_prime = solve_lin(B.T, c_B)
-    c_prime = y_prime@A - c
+    c_prime = c_B@A_prime - c
   
   while True:
     # Bijection between row indicies and x_B
     conv = {A_prime[:, ind].argmax(axis = 0): ind for ind in B_inds}
   
-    print(A_prime)
+    print('A', A_prime)
+    print('b', b_prime)
+    print('c', c_prime)	
+    print()
 
     # DONE: B is optimal
     if (c_prime >= 0).all():
@@ -329,9 +188,11 @@ def phase_one(A, b, c, A_max_ind, B_inds):
   """
 
   # Check if Ax = b is solvable at all
+  """
   res = sympy.linsolve((sympy.Matrix(A), sympy.Matrix(b)))
   if res == sympy.S.EmptySet:
     return {'solvable': False}
+  """
 
   ps = primal_simplex(A, b, c, B_inds, phase_one = True)
   if not ps['solvable']:
@@ -343,9 +204,7 @@ def phase_one(A, b, c, A_max_ind, B_inds):
     c_prime = ps['c']
 
     # Check if the optimum is < 0
-    x = solve_lin(A[:, B_inds], b)
-    print('LLL', x)
-    print('binds', B_inds)
+    x = I_solve(A_prime[:, B_inds], b_prime)
     if any([x[i] != 0 and B_inds[i] >= A_max_ind for i in range(len(x))]):
       return {'solvable': False}
 
@@ -365,7 +224,7 @@ def phase_one(A, b, c, A_max_ind, B_inds):
       
       # Calculate the new simplex table
       A_prime, b_prime, c_prime = pivot(A_prime, b_prime, c_prime, r, p)
-    
+
     return {'solvable': True, 'base': sorted(B_inds)}
   
 def identity(n):
@@ -380,14 +239,9 @@ def identity(n):
   for i in range(n):
     res.append([sympy.Rational(1, 1) if i == j else sympy.Rational(0, 1) for j in range(n)])
   return np.array(res)
-   
-if __name__ == '__main__':
+
+def solve():
   A, b, c = read_input()
-  
-  # Eliminate redundant rows, if any
-  _, inds = sympy.Matrix(A).T.rref()
-  A = A[inds, :]
-  b = b[np.array(inds)]
 
   B_inds = np.array([i for i in range(len(A[0]), len(A[0]) + len(A))])
   I = identity(len(A))
@@ -400,8 +254,8 @@ if __name__ == '__main__':
     if res_2['solvable']:
       B_inds_phase_2 = res_2['base']
       B_p2 = A[:, B_inds_phase_2]
-      x_B = solve_lin(B_p2, b)
-      y = solve_lin(B_p2.T, c[B_inds_phase_2])
+      x_B = I_solve(res_2['A'][:, B_inds_phase_2], res_2['b'])
+      y = c[B_inds_phase_2]@np.array(sympy.Matrix(A[:, B_inds_phase_2]).inv())
 
       k = 0
       x = []
@@ -420,3 +274,7 @@ if __name__ == '__main__':
       print("Unbounded solution: ", res_2['dir']) 
   else:
     print("No solution")
+
+
+if __name__ == '__main__':
+  solve()
