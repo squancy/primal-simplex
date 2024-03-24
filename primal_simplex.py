@@ -165,11 +165,12 @@ def primal_simplex(A, b, c, B_inds, phase_one = False):
     p = select_p(c_prime, B_inds)
   
     a_p = A_prime[:, p] 
-    B_inds = np.append(B_inds, p)
 
     # cx is not bounded above --> no solution
     if (a_p <= 0).all():
-      return {'solvable': False, 'dir': a_p}
+      return {'solvable': False, 'dir': extend_x(B_inds, A, I_solve(A_prime[:, B_inds], b_prime))}
+
+    B_inds = np.append(B_inds, p)
 
     # Select the row (r) that is taken out of B
     r = select_r(b_prime, a_p)
@@ -240,6 +241,17 @@ def identity(n):
     res.append([sympy.Rational(1, 1) if i == j else sympy.Rational(0, 1) for j in range(n)])
   return np.array(res)
 
+def extend_x(B_inds, A, x_B):
+  k = 0
+  x = []
+  for i in range(len(A[0])):
+    if i in B_inds:
+      x.append(x_B[k])
+      k += 1
+    else:
+      x.append(0)
+  return x
+
 def solve():
   A, b, c = read_input()
 
@@ -256,17 +268,8 @@ def solve():
       B_p2 = A[:, B_inds_phase_2]
       x_B = I_solve(res_2['A'][:, B_inds_phase_2], res_2['b'])
       y = c[B_inds_phase_2]@np.array(sympy.Matrix(A[:, B_inds_phase_2]).inv())
-
-      k = 0
-      x = []
-      for i in range(len(A[0])):
-        if i in B_inds_phase_2:
-          x.append(x_B[k])
-          k += 1
-        else:
-          x.append(0)
+      x = np.array(extend_x(B_inds_phase_2, A, x_B))
       
-      x = np.array(x)
       print("Optimum:", y@b)
       print("Primal solution:", x)
       print("Dual solution:", y)
