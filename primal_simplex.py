@@ -16,7 +16,6 @@ def read_input():
     A = np.array([[sympy.Rational(x, 1) for x in lines[3 + i].split(' ')] for i in range(m)])
     b = A[:, -1]
     A = A[:, :-1]
-  print(A)
   return A, b, c
 
 def pivot(A_prime, b_prime, c_prime, r, p):
@@ -269,15 +268,19 @@ def solve():
       x_B = I_solve(res_2['A'][:, B_inds_phase_2], res_2['b'])
       y = c[B_inds_phase_2]@np.array(sympy.Matrix(A[:, B_inds_phase_2]).inv())
       x = np.array(extend_x(B_inds_phase_2, A, x_B))
-      
-      print("Optimum:", y@b)
-      print("Primal solution:", x)
-      print("Dual solution:", y)
+      return {'status': 1, 'primal': x, 'dual': y, 'opt': c@x}
     else:
-      print("Unbounded solution: ", res_2['dir']) 
+      return {'status': 2, 'dir': res_2['dir']}
   else:
-    print("No solution")
-
+    return {'status': 0}
 
 if __name__ == '__main__':
-  solve()
+  res = solve()
+  if not res['status']:
+    print('Not solvable')
+  elif res['status'] == 1:
+    print('Optimum:', res['opt'])
+    print('Primal solution:', res['primal'])
+    print('Dual solution:', res['dual'])
+  else:
+    print('Unbounded solution:', res['dir'])
